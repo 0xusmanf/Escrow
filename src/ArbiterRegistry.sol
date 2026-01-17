@@ -10,6 +10,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  */
 // aderyn-ignore-next-line(centralization-risk)
 contract ArbiterRegistry is Ownable {
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
     error InsufficientStakeValue();
     error AlreadyRegistered();
     error NotRegistered();
@@ -139,7 +142,7 @@ contract ArbiterRegistry is Ownable {
      */
     // aderyn-ignore-next-line(centralization-risk)
     function updateReputation(address arbiter, bool successful) external onlyOwner {
-        if (!arbiters[arbiter].isActive || arbiters[arbiter].stake == 0) {
+        if (arbiters[arbiter].registeredAt > 0) {
             revert ArbiterNotFound();
         }
 
