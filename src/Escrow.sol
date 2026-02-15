@@ -10,27 +10,35 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
  * @dev Implements state machine for escrow lifecycle with optional arbiter for disputes
  */
 contract Escrow is ReentrancyGuard, Pausable {
-    error NotBuyer();
-    error NotSeller();
-    error NotArbiter();
-    error InvalidState();
-    error BuyerCannotBeZeroAddress();
-    error SellerCannotBeZeroAddress();
-    error ArbiterCannotBeZeroAddress();
-    error BuyerCannotBeSeller();
-    error AmountMustBePositive();
-    error InvalidDeadline();
-    error DescriptionRequired();
-    error IncorrectAmount();
-    error DeadlinePassed();
-    error ReasonRequired();
-    error ResolutionRequired();
-    error AmountsShouldAddUpToAvailableAmount();
-    error NotAuthorized();
-    error DeadlineNotPassed();
-    error CannotCancelInCurrentState();
-    error NoFundsToWithdraw();
-    error WithdrawalFailed();
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error Escrow__NotBuyer();
+    error Escrow__NotSeller();
+    error Escrow__NotArbiter();
+    error Escrow__InvalidState();
+    error Escrow__BuyerCannotBeZeroAddress();
+    error Escrow__SellerCannotBeZeroAddress();
+    error Escrow__ArbiterCannotBeZeroAddress();
+    error Escrow__BuyerCannotBeSeller();
+    error Escrow__AmountMustBePositive();
+    error Escrow__InvalidDeadline();
+    error Escrow__DescriptionRequired();
+    error Escrow__IncorrectAmount();
+    error Escrow__DeadlinePassed();
+    error Escrow__ReasonRequired();
+    error Escrow__ResolutionRequired();
+    error Escrow__AmountsShouldAddUpToAvailableAmount();
+    error Escrow__NotAuthorized();
+    error Escrow__DeadlineNotPassed();
+    error Escrow__CannotCancelInCurrentState();
+    error Escrow__NoFundsToWithdraw();
+    error Escrow__WithdrawalFailed();
+
+    /*//////////////////////////////////////////////////////////////
+                           TYPE DECLARATIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Possible states of an escrow contract
@@ -84,6 +92,10 @@ contract Escrow is ReentrancyGuard, Pausable {
         uint256 createdAt;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
     // Core escrow details
     EscrowDetails public details;
 
@@ -108,6 +120,10 @@ contract Escrow is ReentrancyGuard, Pausable {
     // Pending withdrawals mapping
     mapping(address => uint256) public pendingWithdrawals;
 
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+
     event Funded(uint256 amount, uint256 timestamp);
     event Delivered(uint256 timestamp);
     event Completed(uint256 amount, uint256 fee, uint256 timestamp);
@@ -117,33 +133,41 @@ contract Escrow is ReentrancyGuard, Pausable {
     event RefundClaimed(uint256 amount, uint256 timestamp);
     event WithdrawalReady(address indexed recipient, uint256 amount);
 
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
     modifier onlyBuyer() {
         if (msg.sender != details.buyer) {
-            revert NotBuyer();
+            revert Escrow__NotBuyer();
         }
         _;
     }
 
     modifier onlySeller() {
         if (msg.sender != details.seller) {
-            revert NotSeller();
+            revert Escrow__NotSeller();
         }
         _;
     }
 
     modifier onlyArbiter() {
         if (msg.sender != details.arbiter) {
-            revert NotArbiter();
+            revert Escrow__NotArbiter();
         }
         _;
     }
 
     modifier inState(EscrowState _state) {
         if (details.state != _state) {
-            revert InvalidState();
+            revert Escrow__InvalidState();
         }
         _;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Initialize a new escrow
@@ -163,31 +187,31 @@ contract Escrow is ReentrancyGuard, Pausable {
         string memory _description
     ) {
         if (_buyer == address(0)) {
-            revert BuyerCannotBeZeroAddress();
+            revert Escrow__BuyerCannotBeZeroAddress();
         }
 
         if (_seller == address(0)) {
-            revert SellerCannotBeZeroAddress();
+            revert Escrow__SellerCannotBeZeroAddress();
         }
 
         if (_arbiter == address(0)) {
-            revert ArbiterCannotBeZeroAddress();
+            revert Escrow__ArbiterCannotBeZeroAddress();
         }
 
         if (_buyer == _seller) {
-            revert BuyerCannotBeSeller();
+            revert Escrow__BuyerCannotBeSeller();
         }
 
         if (_amount == 0) {
-            revert AmountMustBePositive();
+            revert Escrow__AmountMustBePositive();
         }
 
         if (_deadline <= block.timestamp) {
-            revert InvalidDeadline();
+            revert Escrow__InvalidDeadline();
         }
 
         if (bytes(_description).length == 0) {
-            revert DescriptionRequired();
+            revert Escrow__DescriptionRequired();
         }
 
         // need to figure out a way to insure that the factory is the contract that created the escrow
@@ -205,17 +229,21 @@ contract Escrow is ReentrancyGuard, Pausable {
         });
     }
 
+    /*//////////////////////////////////////////////////////////////
+                           EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /**
      * @notice Fund the escrow (buyer only)
      * @dev Must send exact amount specified during creation
      */
     function fund() external payable onlyBuyer inState(EscrowState.Created) whenNotPaused {
         if (msg.value != details.amount) {
-            revert IncorrectAmount();
+            revert Escrow__IncorrectAmount();
         }
 
         if (block.timestamp > details.deadline) {
-            revert DeadlinePassed();
+            revert Escrow__DeadlinePassed();
         }
 
         details.state = EscrowState.Funded;
@@ -228,7 +256,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      */
     function markDelivered() external onlySeller inState(EscrowState.Funded) whenNotPaused {
         if (block.timestamp > details.deadline) {
-            revert DeadlinePassed();
+            revert Escrow__DeadlinePassed();
         }
 
         details.state = EscrowState.Delivered;
@@ -247,11 +275,16 @@ contract Escrow is ReentrancyGuard, Pausable {
 
         // Use pull-over-push pattern
         pendingWithdrawals[details.seller] += sellerAmount;
-        pendingWithdrawals[FACTORY] += fee;
 
         emit Completed(sellerAmount, fee, block.timestamp);
         emit WithdrawalReady(details.seller, sellerAmount);
         emit WithdrawalReady(FACTORY, fee);
+
+        // Transfer fee directly to factory
+        (bool success,) = FACTORY.call{value: fee}("");
+        if (!success) {
+            revert Escrow__WithdrawalFailed();
+        }
     }
 
     /**
@@ -261,7 +294,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      */
     function raiseDispute(string memory _reason) external onlyBuyer inState(EscrowState.Delivered) whenNotPaused {
         if (bytes(_reason).length == 0) {
-            revert ReasonRequired();
+            revert Escrow__ReasonRequired();
         }
 
         isDisputed = true;
@@ -286,14 +319,14 @@ contract Escrow is ReentrancyGuard, Pausable {
         whenNotPaused
     {
         if (bytes(_resolution).length == 0) {
-            revert ResolutionRequired();
+            revert Escrow__ResolutionRequired();
         }
 
         uint256 fee = (details.amount * PLATFORM_FEE_BPS) / BPS_DENOMINATOR;
         uint256 availableAmount = details.amount - fee;
 
         if (_buyerAmount + _sellerAmount != availableAmount) {
-            revert AmountsShouldAddUpToAvailableAmount();
+            revert Escrow__AmountsShouldAddUpToAvailableAmount();
         }
 
         details.state = EscrowState.Resolved;
@@ -307,8 +340,14 @@ contract Escrow is ReentrancyGuard, Pausable {
             pendingWithdrawals[details.seller] += _sellerAmount;
             emit WithdrawalReady(details.seller, _sellerAmount);
         }
-        pendingWithdrawals[FACTORY] += fee;
+
         emit WithdrawalReady(FACTORY, fee);
+
+        // Transfer fee directly to factory
+        (bool success,) = FACTORY.call{value: fee}("");
+        if (!success) {
+            revert Escrow__WithdrawalFailed();
+        }
 
         emit DisputeResolved(_buyerAmount, _sellerAmount, _resolution);
     }
@@ -319,7 +358,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      */
     function cancel() external whenNotPaused {
         if (msg.sender != details.buyer || msg.sender != details.seller) {
-            revert NotAuthorized();
+            revert Escrow__NotAuthorized();
         }
 
         if (details.state == EscrowState.Created) {
@@ -329,7 +368,7 @@ contract Escrow is ReentrancyGuard, Pausable {
         } else if (details.state == EscrowState.Funded) {
             // Can only cancel after deadline if not delivered
             if (block.timestamp <= details.deadline) {
-                revert DeadlineNotPassed();
+                revert Escrow__DeadlineNotPassed();
             }
             details.state = EscrowState.Refunded;
 
@@ -337,7 +376,7 @@ contract Escrow is ReentrancyGuard, Pausable {
             emit RefundClaimed(details.amount, block.timestamp);
             emit WithdrawalReady(details.buyer, details.amount);
         } else {
-            revert CannotCancelInCurrentState();
+            revert Escrow__CannotCancelInCurrentState();
         }
     }
 
@@ -348,14 +387,14 @@ contract Escrow is ReentrancyGuard, Pausable {
     function withdraw() external nonReentrant {
         uint256 amount = pendingWithdrawals[msg.sender];
         if (amount == 0) {
-            revert NoFundsToWithdraw();
+            revert Escrow__NoFundsToWithdraw();
         }
 
         pendingWithdrawals[msg.sender] = 0;
 
         (bool success,) = msg.sender.call{value: amount}("");
         if (!success) {
-            revert WithdrawalFailed();
+            revert Escrow__WithdrawalFailed();
         }
     }
 
@@ -381,7 +420,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      */
     function pause() external {
         if (msg.sender != FACTORY) {
-            revert NotAuthorized();
+            revert Escrow__NotAuthorized();
         }
         _pause();
     }
@@ -391,7 +430,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      */
     function unpause() external {
         if (msg.sender != FACTORY) {
-            revert NotAuthorized();
+            revert Escrow__NotAuthorized();
         }
         _unpause();
     }

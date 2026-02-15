@@ -13,15 +13,20 @@ contract ArbiterRegistry is Ownable {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error InsufficientStakeValue();
-    error AlreadyRegistered();
-    error NotRegistered();
-    error WithdrawalAlreadyRequested();
-    error NoWithdrawalRequested();
-    error WithdrawalTooSoon();
-    error NoStakeToWithdraw();
-    error TransactionFailed();
-    error ArbiterNotFound();
+
+    error ArbiterRegistry__InsufficientStakeValue();
+    error ArbiterRegistry__AlreadyRegistered();
+    error ArbiterRegistry__NotRegistered();
+    error ArbiterRegistry__WithdrawalAlreadyRequested();
+    error ArbiterRegistry__NoWithdrawalRequested();
+    error ArbiterRegistry__WithdrawalTooSoon();
+    error ArbiterRegistry__NoStakeToWithdraw();
+    error ArbiterRegistry__TransactionFailed();
+    error ArbiterRegistry__ArbiterNotFound();
+
+    /*//////////////////////////////////////////////////////////////
+                           TYPE DECLARATIONS
+    //////////////////////////////////////////////////////////////*/
 
     // Minimum stake required to register as an arbiter
     uint256 public constant MINIMUM_STAKE = 0.1 ether;
@@ -47,11 +52,19 @@ contract ArbiterRegistry is Ownable {
         uint256 withdrawalRequestTime;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
     // Mapping of arbiter addresses to their information
     mapping(address => Arbiter) public arbiters;
 
     // Total number of registered arbiters
     uint256 public totalArbiters;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
 
     event ArbiterRegistered(address indexed arbiter, uint256 indexed stake);
     event ArbiterStakeIncreased(address indexed arbiter, uint256 indexed additionalStake);
@@ -59,7 +72,15 @@ contract ArbiterRegistry is Ownable {
     event StakeWithdrawn(address indexed arbiter, uint256 indexed amount);
     event ReputationUpdated(address indexed arbiter, bool indexed successful);
 
+    /*//////////////////////////////////////////////////////////////
+                               CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
     constructor() Ownable(msg.sender) {}
+
+    /*//////////////////////////////////////////////////////////////
+                           EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Register as an arbiter by staking the minimum required amount
@@ -67,10 +88,10 @@ contract ArbiterRegistry is Ownable {
      */
     function registerArbiter() external payable {
         if (msg.value < MINIMUM_STAKE) {
-            revert InsufficientStakeValue();
+            revert ArbiterRegistry__InsufficientStakeValue();
         }
         if (arbiters[msg.sender].isActive) {
-            revert AlreadyRegistered();
+            revert ArbiterRegistry__AlreadyRegistered();
         }
 
         arbiters[msg.sender] = Arbiter({
@@ -93,10 +114,10 @@ contract ArbiterRegistry is Ownable {
     function requestWithdrawal() external {
         Arbiter storage arbiter = arbiters[msg.sender];
         if (!arbiter.isActive) {
-            revert NotRegistered();
+            revert ArbiterRegistry__NotRegistered();
         }
         if (arbiter.withdrawalRequestTime > 0) {
-            revert WithdrawalAlreadyRequested();
+            revert ArbiterRegistry__WithdrawalAlreadyRequested();
         }
 
         arbiter.isActive = false;
@@ -112,15 +133,15 @@ contract ArbiterRegistry is Ownable {
     function withdrawStake() external {
         Arbiter storage arbiter = arbiters[msg.sender];
         if (arbiter.withdrawalRequestTime == 0) {
-            revert NoWithdrawalRequested();
+            revert ArbiterRegistry__NoWithdrawalRequested();
         }
         if (block.timestamp < arbiter.withdrawalRequestTime + WITHDRAWAL_DELAY) {
-            revert WithdrawalTooSoon();
+            revert ArbiterRegistry__WithdrawalTooSoon();
         }
 
         uint256 amount = arbiter.stake;
         if (amount == 0) {
-            revert NoStakeToWithdraw();
+            revert ArbiterRegistry__NoStakeToWithdraw();
         }
 
         arbiter.stake = 0;
@@ -128,7 +149,7 @@ contract ArbiterRegistry is Ownable {
 
         (bool success,) = msg.sender.call{value: amount}("");
         if (!success) {
-            revert TransactionFailed();
+            revert ArbiterRegistry__TransactionFailed();
         }
 
         emit StakeWithdrawn(msg.sender, amount);
@@ -143,7 +164,7 @@ contract ArbiterRegistry is Ownable {
     // aderyn-ignore-next-line(centralization-risk)
     function updateReputation(address arbiter, bool successful) external onlyOwner {
         if (arbiters[arbiter].registeredAt > 0) {
-            revert ArbiterNotFound();
+            revert ArbiterRegistry__ArbiterNotFound();
         }
 
         arbiters[arbiter].disputesResolved++;
