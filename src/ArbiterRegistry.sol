@@ -163,7 +163,7 @@ contract ArbiterRegistry is Ownable {
      */
     // aderyn-ignore-next-line(centralization-risk)
     function updateReputation(address arbiter, bool successful) external onlyOwner {
-        if (arbiters[arbiter].registeredAt > 0) {
+        if (arbiters[arbiter].registeredAt == 0) {
             revert ArbiterRegistry__ArbiterNotFound();
         }
 

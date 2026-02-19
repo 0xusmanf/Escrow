@@ -89,7 +89,7 @@ contract EscrowFactory is Ownable, ReentrancyGuard {
     /**
      * @notice Create a new escrow
      * @param _seller Address of the seller
-     * @param _arbiter Address of the arbiter (zero address if no arbiter needed)
+     * @param _arbiter Address of the arbiter
      * @param _amount Amount to be escrowed
      * @param _deadline Deadline timestamp for delivery
      * @param _description Description of the work/goods

@@ -357,7 +357,7 @@ contract Escrow is ReentrancyGuard, Pausable {
      * @dev Can be called by buyer or seller under specific conditions
      */
     function cancel() external whenNotPaused {
-        if (msg.sender != details.buyer || msg.sender != details.seller) {
+        if (msg.sender != details.buyer && msg.sender != details.seller) {
             revert Escrow__NotAuthorized();
         }
 
